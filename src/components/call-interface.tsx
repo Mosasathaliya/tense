@@ -86,7 +86,7 @@ export function CallInterface() {
       synth.cancel();
       return;
     }
-    synth.cancel();
+    synth.cancel(); // Cancel any previous speech
 
     const utterance = new SpeechSynthesisUtterance(explanation);
     utterance.lang = 'ar-SA';
@@ -114,6 +114,7 @@ export function CallInterface() {
     return () => {
       synth.cancel();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [explanation, callState, isMuted, isListening]);
 
 
@@ -302,7 +303,7 @@ export function CallInterface() {
     <Card className="w-full max-w-2xl shadow-xl overflow-hidden bg-card">
       <CardHeader className="text-center p-6 bg-muted/30 relative">
         <div className="flex justify-center mb-4">
-            <Avatar className="w-28 h-28 border-4 border-primary shadow-lg">
+            <Avatar className="w-24 h-24 sm:w-28 sm:h-28 border-2 sm:border-4 border-primary shadow-lg">
               <Image 
                 src={currentTeacherInfo.avatarSrc} 
                 alt={currentTeacherInfo.name} 
@@ -311,11 +312,11 @@ export function CallInterface() {
                 data-ai-hint={currentTeacherInfo.avatarHint}
                 className="object-cover"
               />
-              <AvatarFallback className="text-4xl">{selectedTeacher.charAt(0)}</AvatarFallback>
+              <AvatarFallback className="text-3xl sm:text-4xl">{selectedTeacher.charAt(0)}</AvatarFallback>
             </Avatar>
         </div>
-        <CardTitle className="text-3xl font-semibold text-foreground">{currentTeacherInfo.name}</CardTitle>
-        <CardDescription className="text-muted-foreground mt-1">{currentTeacherInfo.description}</CardDescription>
+        <CardTitle className="text-2xl sm:text-3xl font-semibold text-foreground">{currentTeacherInfo.name}</CardTitle>
+        <CardDescription className="text-muted-foreground mt-1 text-sm sm:text-base">{currentTeacherInfo.description}</CardDescription>
          <Button
             variant="ghost"
             size="icon"
@@ -323,25 +324,25 @@ export function CallInterface() {
             className="absolute top-4 rtl:left-4 ltr:right-4 text-muted-foreground hover:text-primary"
             aria-label={isMuted ? "إلغاء كتم الصوت" : "كتم الصوت"}
           >
-            {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
+            {isMuted ? <VolumeX className="h-5 w-5 sm:h-6 sm:w-6" /> : <Volume2 className="h-5 w-5 sm:h-6 sm:w-6" />}
           </Button>
       </CardHeader>
 
       <Tabs value={selectedTeacher} onValueChange={(value) => setSelectedTeacher(value as Teacher)} className="w-full">
         <TabsList className="grid w-full grid-cols-2 rounded-none h-auto">
-          <TabsTrigger value="Ahmed" className="py-4 text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-none">
-            <User className="ms-2 h-5 w-5" /> أحمد
+          <TabsTrigger value="Ahmed" className="py-3 sm:py-4 text-sm sm:text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-none">
+            <User className="ms-2 h-4 w-4 sm:h-5 sm:w-5" /> أحمد
           </TabsTrigger>
-          <TabsTrigger value="Sara" className="py-4 text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-none">
-            <User className="ms-2 h-5 w-5" /> سارة
+          <TabsTrigger value="Sara" className="py-3 sm:py-4 text-sm sm:text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-none">
+            <User className="ms-2 h-4 w-4 sm:h-5 sm:w-5" /> سارة
           </TabsTrigger>
         </TabsList>
 
-        <CardContent className="p-6 space-y-6">
-          <form onSubmit={handleSubmit(currentTeacherInfo.onSubmit as SubmitHandler<any>)} className="space-y-6">
+        <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+          <form onSubmit={handleSubmit(currentTeacherInfo.onSubmit as SubmitHandler<any>)} className="space-y-4 sm:space-y-6">
             <div>
               <div className="flex items-center justify-between mb-1">
-                <Label htmlFor="englishGrammarConcept" className="text-md font-medium">مفهوم قواعد اللغة (إنجليزية أو عربية)</Label>
+                <Label htmlFor="englishGrammarConcept" className="text-sm sm:text-md font-medium">مفهوم قواعد اللغة (إنجليزية أو عربية)</Label>
                  {speechRecognitionSupported && (
                   <div className="flex gap-2">
                     <Button
@@ -349,12 +350,12 @@ export function CallInterface() {
                       variant="outline"
                       size="sm"
                       onClick={() => toggleListening('en-US')}
-                      className={`${isListening && listeningLanguage === 'en-US' ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}
+                      className={`${isListening && listeningLanguage === 'en-US' ? 'border-destructive text-destructive' : 'border-primary text-primary'} text-xs px-2 sm:px-3`}
                       disabled={callState === "calling" || isSubmitting || (isListening && listeningLanguage !== 'en-US') || !speechRecognitionSupported}
                       aria-label={isListening && listeningLanguage === 'en-US' ? "أوقف الاستماع بالإنجليزية" : "ابدأ الاستماع بالإنجليزية"}
                       title="تحدث بالإنجليزية"
                     >
-                      {isListening && listeningLanguage === 'en-US' ? <MicOff /> : <Mic />}
+                      {isListening && listeningLanguage === 'en-US' ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                        EN
                     </Button>
                      <Button
@@ -362,12 +363,12 @@ export function CallInterface() {
                       variant="outline"
                       size="sm"
                       onClick={() => toggleListening('ar-SA')}
-                      className={`${isListening && listeningLanguage === 'ar-SA' ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}
+                      className={`${isListening && listeningLanguage === 'ar-SA' ? 'border-destructive text-destructive' : 'border-primary text-primary'} text-xs px-2 sm:px-3`}
                       disabled={callState === "calling" || isSubmitting || (isListening && listeningLanguage !== 'ar-SA') || !speechRecognitionSupported}
                       aria-label={isListening && listeningLanguage === 'ar-SA' ? "أوقف الاستماع بالعربية" : "ابدأ الاستماع بالعربية"}
                       title="تحدث بالعربية"
                     >
-                      {isListening && listeningLanguage === 'ar-SA' ? <MicOff /> : <Mic />}
+                      {isListening && listeningLanguage === 'ar-SA' ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                        AR
                     </Button>
                   </div>
@@ -385,7 +386,7 @@ export function CallInterface() {
                 rows={3}
                 disabled={callState === "calling" || isSubmitting || isListening}
               />
-              {errors.englishGrammarConcept && <p className="text-sm text-destructive mt-1">{errors.englishGrammarConcept.message}</p>}
+              {errors.englishGrammarConcept && <p className="text-xs sm:text-sm text-destructive mt-1">{errors.englishGrammarConcept.message}</p>}
               {!speechRecognitionSupported && (
                  <p className="text-xs text-muted-foreground mt-1">الإدخال الصوتي غير مدعوم في متصفحك.</p>
               )}
@@ -393,7 +394,7 @@ export function CallInterface() {
 
             {selectedTeacher === "Sara" && (
               <div>
-                <Label htmlFor="userLanguageProficiency" className="text-md font-medium">مستوى إتقانك للغة الإنجليزية</Label>
+                <Label htmlFor="userLanguageProficiency" className="text-sm sm:text-md font-medium">مستوى إتقانك للغة الإنجليزية</Label>
                 <Input
                   id="userLanguageProficiency"
                   placeholder="مثال: مبتدئ، متوسط، متقدم"
@@ -401,41 +402,41 @@ export function CallInterface() {
                   className={`mt-2 text-base bg-background focus:ring-2 focus:ring-primary ${errors.userLanguageProficiency ? 'border-destructive focus:ring-destructive' : 'border-border'}`}
                   disabled={callState === "calling" || isSubmitting}
                 />
-                {errors.userLanguageProficiency && <p className="text-sm text-destructive mt-1">{errors.userLanguageProficiency.message}</p>}
+                {errors.userLanguageProficiency && <p className="text-xs sm:text-sm text-destructive mt-1">{errors.userLanguageProficiency.message}</p>}
               </div>
             )}
             
             <div className="pt-2">
             {callState === "idle" || callState === "error" ? (
-              <Button type="submit" className="w-full py-3 text-lg bg-accent hover:bg-accent/90 text-accent-foreground rounded-md shadow-md transition-transform hover:scale-105" disabled={isSubmitting || isListening}>
-                <Mic className="ms-2 h-5 w-5" /> ابدأ المكالمة
+              <Button type="submit" className="w-full py-2.5 sm:py-3 text-base sm:text-lg bg-accent hover:bg-accent/90 text-accent-foreground rounded-md shadow-md transition-transform hover:scale-105" disabled={isSubmitting || isListening}>
+                <Mic className="ms-2 h-4 w-4 sm:h-5 sm:w-5" /> ابدأ المكالمة
               </Button>
             ) : callState === "calling" ? (
-              <Button className="w-full py-3 text-lg bg-accent/80 rounded-md" disabled>
-                <Loader2 className="ms-2 h-5 w-5 animate-spin" /> جاري الاتصال بـ {currentTeacherInfo.name}...
+              <Button className="w-full py-2.5 sm:py-3 text-base sm:text-lg bg-accent/80 rounded-md" disabled>
+                <Loader2 className="ms-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" /> جاري الاتصال بـ {currentTeacherInfo.name}...
               </Button>
             ) : ( // callState === "active"
-              <Button type="button" onClick={endCall} variant="outline" className="w-full py-3 text-lg border-primary text-primary hover:bg-primary/10 rounded-md shadow-sm transition-transform hover:scale-105">
-                <PhoneOff className="ms-2 h-5 w-5" /> إنهاء المكالمة
+              <Button type="button" onClick={endCall} variant="outline" className="w-full py-2.5 sm:py-3 text-base sm:text-lg border-primary text-primary hover:bg-primary/10 rounded-md shadow-sm transition-transform hover:scale-105">
+                <PhoneOff className="ms-2 h-4 w-4 sm:h-5 sm:w-5" /> إنهاء المكالمة
               </Button>
             )}
             </div>
           </form>
 
           {callState === "active" && explanation && (
-            <div className="mt-6 p-6 bg-secondary/30 rounded-lg shadow-inner border border-border">
-              <h3 className="text-xl font-semibold mb-3 text-primary flex items-center">
-                <MessageCircle className="ms-2 h-6 w-6" /> شرح {currentTeacherInfo.name}:
+            <div className="mt-4 sm:mt-6 p-4 sm:p-6 bg-secondary/30 rounded-lg shadow-inner border border-border">
+              <h3 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-3 text-primary flex items-center">
+                <MessageCircle className="ms-2 h-5 w-5 sm:h-6 sm:w-6" /> شرح {currentTeacherInfo.name}:
               </h3>
-              <div className="text-foreground whitespace-pre-wrap text-base leading-relaxed p-2 bg-background rounded" style={{ textAlign: 'right', direction: 'rtl' }}>{explanation}</div>
+              <div className="text-sm sm:text-base text-foreground whitespace-pre-wrap leading-relaxed p-2 bg-background rounded" style={{ textAlign: 'right', direction: 'rtl' }}>{explanation}</div>
             </div>
           )}
           {callState === "error" && (
-             <div className="mt-6 p-4 bg-destructive/10 text-destructive rounded-lg shadow-inner border border-destructive/30 flex items-center gap-3">
-              <AlertTriangle className="h-8 w-8 flex-shrink-0" />
+             <div className="mt-4 sm:mt-6 p-4 bg-destructive/10 text-destructive rounded-lg shadow-inner border border-destructive/30 flex items-center gap-2 sm:gap-3">
+              <AlertTriangle className="h-6 w-6 sm:h-8 sm:h-8 flex-shrink-0" />
               <div>
-                <h3 className="text-lg font-semibold">فشل الاتصال</h3>
-                <p className="text-sm">تعذر الاتصال بـ {currentTeacherInfo.name}. يرجى المحاولة مرة أخرى.</p>
+                <h3 className="text-base sm:text-lg font-semibold">فشل الاتصال</h3>
+                <p className="text-xs sm:text-sm">تعذر الاتصال بـ {currentTeacherInfo.name}. يرجى المحاولة مرة أخرى.</p>
               </div>
             </div>
           )}
@@ -444,7 +445,3 @@ export function CallInterface() {
     </Card>
   );
 }
-
-    
-
-    
