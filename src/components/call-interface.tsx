@@ -33,6 +33,7 @@ type SaraFormData = z.infer<typeof saraSchema>;
 
 type Teacher = "Ahmed" | "Sara";
 type CallState = "idle" | "calling" | "active" | "error";
+type SpeechLanguage = 'en-US' | 'ar-SA';
 
 export function CallInterface() {
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher>("Ahmed");
@@ -42,7 +43,8 @@ export function CallInterface() {
   const { toast } = useToast();
 
   const [isListening, setIsListening] = useState(false);
-  const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState(true); // Assume supported initially
+  const [listeningLanguage, setListeningLanguage] = useState<SpeechLanguage | null>(null);
+  const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState(true);
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
 
 
@@ -56,7 +58,6 @@ export function CallInterface() {
     defaultValues: { englishGrammarConcept: "", userLanguageProficiency: "" },
   });
 
-  // Effect to reset state, cancel speech, and stop recognition when teacher changes
   useEffect(() => {
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
@@ -64,6 +65,7 @@ export function CallInterface() {
     if (speechRecognitionRef.current && isListening) {
       speechRecognitionRef.current.abort();
       setIsListening(false);
+      setListeningLanguage(null);
     }
     setCallState("idle");
     setExplanation(null);
@@ -71,23 +73,23 @@ export function CallInterface() {
     saraForm.reset({ englishGrammarConcept: "", userLanguageProficiency: "" });
     ahmedForm.clearErrors();
     saraForm.clearErrors();
-  }, [selectedTeacher, ahmedForm, saraForm]); // isListening is not a dependency here
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTeacher]);
 
-  // Effect to handle text-to-speech for explanations
   useEffect(() => {
     const synth = window.speechSynthesis;
     if (!synth) {
       return;
     }
 
-    if (callState !== 'active' || !explanation || isMuted || isListening) { // Also don't speak if STT is active
+    if (callState !== 'active' || !explanation || isMuted || isListening) {
       synth.cancel();
       return;
     }
     synth.cancel();
 
     const utterance = new SpeechSynthesisUtterance(explanation);
-    utterance.lang = 'ar-SA'; // Arabic speech
+    utterance.lang = 'ar-SA';
 
     const voices = synth.getVoices();
     const arabicVoice = voices.find(voice => voice.lang.startsWith('ar-'));
@@ -115,7 +117,6 @@ export function CallInterface() {
   }, [explanation, callState, isMuted, toast, isListening]);
 
 
-  // Setup Speech Recognition
   useEffect(() => {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
@@ -128,7 +129,7 @@ export function CallInterface() {
     const recognition = new SpeechRecognitionAPI();
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = 'en-US'; // User speaks English grammar concept
+    // recognition.lang will be set dynamically
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -144,7 +145,7 @@ export function CallInterface() {
     };
 
     recognition.onerror = (event) => {
-      console.error("Speech recognition error:", event.error);
+      console.error("Speech recognition error:", event.error, "Lang:", speechRecognitionRef.current?.lang);
       let errorMessage = "خطأ في التعرف على الكلام. يرجى المحاولة مرة أخرى.";
       if (event.error === 'no-speech') {
         errorMessage = "لم يتم اكتشاف أي كلام. يرجى المحاولة مرة أخرى.";
@@ -152,13 +153,17 @@ export function CallInterface() {
         errorMessage = "خطأ في التقاط الصوت. تأكد من أن الميكروفون يعمل.";
       } else if (event.error === 'not-allowed') {
         errorMessage = "تم رفض الوصول إلى الميكروفون. يرجى تفعيل الأذونات.";
+      } else if (event.error === 'language-not-supported') {
+        errorMessage = `اللغة المحددة (${speechRecognitionRef.current?.lang}) غير مدعومة للتعرف على الكلام.`;
       }
       toast({ variant: "destructive", title: "خطأ في الإدخال الصوتي", description: errorMessage });
       setIsListening(false);
+      setListeningLanguage(null);
     };
 
     recognition.onend = () => {
       setIsListening(false);
+      setListeningLanguage(null);
     };
 
     speechRecognitionRef.current = recognition;
@@ -168,22 +173,27 @@ export function CallInterface() {
         speechRecognitionRef.current.abort();
       }
     };
-  }, [selectedTeacher, ahmedForm, saraForm, toast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTeacher]); // Removed ahmedForm, saraForm, toast from deps as they don't change how recognition is setup
 
-  const toggleListening = () => {
+  const toggleListening = (language: SpeechLanguage) => {
     if (!speechRecognitionRef.current || !speechRecognitionSupported) {
       toast({ variant: "destructive", title: "الميزة غير مدعومة", description: "التعرف على الكلام غير متوفر في متصفحك." });
       return;
     }
     if (isListening) {
       speechRecognitionRef.current.stop();
+      // Let onend handle setIsListening(false) and setListeningLanguage(null)
     } else {
       try {
+        speechRecognitionRef.current.lang = language;
+        setListeningLanguage(language);
         speechRecognitionRef.current.start();
       } catch (e) {
         console.error("Error starting speech recognition:", e);
         toast({ variant: "destructive", title: "خطأ في الإدخال الصوتي", description: "تعذر بدء التعرف. قد يكون مشغولاً أو نشطًا بالفعل."});
         setIsListening(false);
+        setListeningLanguage(null);
       }
     }
   };
@@ -195,6 +205,7 @@ export function CallInterface() {
     if (speechRecognitionRef.current && isListening) {
       speechRecognitionRef.current.abort();
       setIsListening(false);
+      setListeningLanguage(null);
     }
     setCallState("calling");
     setExplanation(null);
@@ -249,6 +260,7 @@ export function CallInterface() {
     if (speechRecognitionRef.current && isListening) {
       speechRecognitionRef.current.abort();
       setIsListening(false);
+      setListeningLanguage(null);
     }
     setCallState("idle");
     setExplanation(null);
@@ -330,24 +342,45 @@ export function CallInterface() {
           <form onSubmit={handleSubmit(currentTeacherInfo.onSubmit as SubmitHandler<any>)} className="space-y-6">
             <div>
               <div className="flex items-center justify-between mb-1">
-                <Label htmlFor="englishGrammarConcept" className="text-md font-medium">مفهوم قواعد اللغة الإنجليزية</Label>
-                {speechRecognitionSupported && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={toggleListening}
-                    className={`p-2 h-8 w-8 ${isListening ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}
-                    disabled={callState === "calling" || isSubmitting || !speechRecognitionSupported}
-                    aria-label={isListening ? "أوقف الاستماع" : "ابدأ الاستماع"}
-                  >
-                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                  </Button>
+                <Label htmlFor="englishGrammarConcept" className="text-md font-medium">مفهوم قواعد اللغة (إنجليزية أو عربية)</Label>
+                 {speechRecognitionSupported && (
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => toggleListening('en-US')}
+                      className={`p-2 h-8 w-8 ${isListening && listeningLanguage === 'en-US' ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}
+                      disabled={callState === "calling" || isSubmitting || (isListening && listeningLanguage !== 'en-US') || !speechRecognitionSupported}
+                      aria-label={isListening && listeningLanguage === 'en-US' ? "أوقف الاستماع بالإنجليزية" : "ابدأ الاستماع بالإنجليزية"}
+                      title="تحدث بالإنجليزية"
+                    >
+                      {isListening && listeningLanguage === 'en-US' ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                       <span className="sr-only">EN</span>
+                    </Button>
+                     <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => toggleListening('ar-SA')}
+                      className={`p-2 h-8 w-8 ${isListening && listeningLanguage === 'ar-SA' ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}
+                      disabled={callState === "calling" || isSubmitting || (isListening && listeningLanguage !== 'ar-SA') || !speechRecognitionSupported}
+                      aria-label={isListening && listeningLanguage === 'ar-SA' ? "أوقف الاستماع بالعربية" : "ابدأ الاستماع بالعربية"}
+                      title="تحدث بالعربية"
+                    >
+                      {isListening && listeningLanguage === 'ar-SA' ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                       <span className="sr-only">AR</span>
+                    </Button>
+                  </div>
                 )}
               </div>
               <Textarea
                 id="englishGrammarConcept"
-                placeholder={isListening ? "جاري الاستماع..." : "مثال: المضارع التام، الجمل الشرطية"}
+                placeholder={
+                  isListening 
+                  ? `جاري الاستماع ${listeningLanguage === 'en-US' ? ' بالإنجليزية' : listeningLanguage === 'ar-SA' ? ' بالعربية' : ''}...` 
+                  : "مثال: Present Perfect، الجمل الشرطية (يمكنك التحدث أو الكتابة)"
+                }
                 {...register("englishGrammarConcept")}
                 className={`mt-1 text-base bg-background focus:ring-2 focus:ring-primary ${errors.englishGrammarConcept ? 'border-destructive focus:ring-destructive' : 'border-border'}`}
                 rows={3}
@@ -361,10 +394,10 @@ export function CallInterface() {
 
             {selectedTeacher === "Sara" && (
               <div>
-                <Label htmlFor="userLanguageProficiency" className="text-md font-medium">مستوى إتقانك للغة</Label>
+                <Label htmlFor="userLanguageProficiency" className="text-md font-medium">مستوى إتقانك للغة الإنجليزية</Label>
                 <Input
                   id="userLanguageProficiency"
-                  placeholder="مثال: مبتدئ، متوسط، متقدم في اللغة الإنجليزية"
+                  placeholder="مثال: مبتدئ، متوسط، متقدم"
                   {...register("userLanguageProficiency")}
                   className={`mt-2 text-base bg-background focus:ring-2 focus:ring-primary ${errors.userLanguageProficiency ? 'border-destructive focus:ring-destructive' : 'border-border'}`}
                   disabled={callState === "calling" || isSubmitting}
@@ -412,3 +445,5 @@ export function CallInterface() {
     </Card>
   );
 }
+
+    
