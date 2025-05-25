@@ -114,7 +114,7 @@ export function CallInterface() {
     return () => {
       synth.cancel();
     };
-  }, [explanation, callState, isMuted, toast, isListening]);
+  }, [explanation, callState, isMuted, isListening]);
 
 
   useEffect(() => {
@@ -174,7 +174,7 @@ export function CallInterface() {
       }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTeacher]); // Removed ahmedForm, saraForm, toast from deps as they don't change how recognition is setup
+  }, [selectedTeacher]); 
 
   const toggleListening = (language: SpeechLanguage) => {
     if (!speechRecognitionRef.current || !speechRecognitionSupported) {
@@ -183,7 +183,6 @@ export function CallInterface() {
     }
     if (isListening) {
       speechRecognitionRef.current.stop();
-      // Let onend handle setIsListening(false) and setListeningLanguage(null)
     } else {
       try {
         speechRecognitionRef.current.lang = language;
@@ -348,28 +347,28 @@ export function CallInterface() {
                     <Button
                       type="button"
                       variant="outline"
-                      size="icon"
+                      size="sm"
                       onClick={() => toggleListening('en-US')}
-                      className={`p-2 h-8 w-8 ${isListening && listeningLanguage === 'en-US' ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}
+                      className={`${isListening && listeningLanguage === 'en-US' ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}
                       disabled={callState === "calling" || isSubmitting || (isListening && listeningLanguage !== 'en-US') || !speechRecognitionSupported}
                       aria-label={isListening && listeningLanguage === 'en-US' ? "أوقف الاستماع بالإنجليزية" : "ابدأ الاستماع بالإنجليزية"}
                       title="تحدث بالإنجليزية"
                     >
-                      {isListening && listeningLanguage === 'en-US' ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                       <span className="sr-only">EN</span>
+                      {isListening && listeningLanguage === 'en-US' ? <MicOff /> : <Mic />}
+                       EN
                     </Button>
                      <Button
                       type="button"
                       variant="outline"
-                      size="icon"
+                      size="sm"
                       onClick={() => toggleListening('ar-SA')}
-                      className={`p-2 h-8 w-8 ${isListening && listeningLanguage === 'ar-SA' ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}
+                      className={`${isListening && listeningLanguage === 'ar-SA' ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}
                       disabled={callState === "calling" || isSubmitting || (isListening && listeningLanguage !== 'ar-SA') || !speechRecognitionSupported}
                       aria-label={isListening && listeningLanguage === 'ar-SA' ? "أوقف الاستماع بالعربية" : "ابدأ الاستماع بالعربية"}
                       title="تحدث بالعربية"
                     >
-                      {isListening && listeningLanguage === 'ar-SA' ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-                       <span className="sr-only">AR</span>
+                      {isListening && listeningLanguage === 'ar-SA' ? <MicOff /> : <Mic />}
+                       AR
                     </Button>
                   </div>
                 )}
@@ -445,5 +444,7 @@ export function CallInterface() {
     </Card>
   );
 }
+
+    
 
     
