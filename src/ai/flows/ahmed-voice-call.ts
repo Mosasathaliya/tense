@@ -22,7 +22,7 @@ const ConversationEntrySchema = z.object({
 const AhmedVoiceCallInputSchema = z.object({
   englishGrammarConcept: z
     .string()
-    .describe('The English grammar concept to be explained. This might be in English, Arabic, or a garbled version from speech-to-text.'),
+    .describe('The English grammar concept or question from the user. This might be in English, Arabic, or a garbled version from speech-to-text.'),
   conversationHistory: z.array(ConversationEntrySchema).optional().describe('The history of the conversation so far, to provide context for follow-up questions.'),
 });
 export type AhmedVoiceCallInput = z.infer<typeof AhmedVoiceCallInputSchema>;
@@ -30,7 +30,7 @@ export type AhmedVoiceCallInput = z.infer<typeof AhmedVoiceCallInputSchema>;
 const AhmedVoiceCallOutputSchema = z.object({
   explanation: z
     .string()
-    .describe('The explanation of the English grammar concept in Arabic.'),
+    .describe('The explanation of the English grammar concept in Arabic, or an answer to the user\'s question.'),
 });
 export type AhmedVoiceCallOutput = z.infer<typeof AhmedVoiceCallOutputSchema>;
 
@@ -45,17 +45,18 @@ const prompt = ai.definePrompt({
   prompt: `You are Ahmed, an AI teacher specializing in explaining English grammar concepts in Arabic with speed of mastery. Address yourself as AI teacher. You are male.
 
 {{#if conversationHistory}}
-This is a continuation of a previous conversation. Please consider the following history to understand the context and provide a relevant answer to the current question:
+You are in an ongoing conversation. Here's the history so far:
 {{#each conversationHistory}}
 {{this.speaker}}: {{this.message}}
 {{/each}}
 ---
-Now, the user's current question/statement is: "{{englishGrammarConcept}}"
+The user's NEWEST message/question, building on this conversation, is: "{{englishGrammarConcept}}"
+Your task is to understand this newest message in the context of the conversation history and provide a clear explanation or answer in Arabic. Focus on the newest message. If the newest message is unclear even with history, ask for clarification in Arabic.
 {{else}}
-The user will provide a term or phrase related to English grammar. This term might be in English, or it might be an attempt to state an English concept in Arabic. It might also be a result from a speech-to-text system that was expecting English, so if the user spoke Arabic, it could be garbled. The user's input is: "{{englishGrammarConcept}}"
-{{/if}}
-
-Your task is to interpret the user's current input to identify the most likely English grammar concept they are asking about, considering any provided conversation history. Then, explain that English grammar concept clearly in Arabic. If the input (even with history) is too unclear to determine a specific English grammar concept, politely ask for clarification in Arabic.`,
+The user is starting a new conversation. Their first message/question is: "{{englishGrammarConcept}}"
+This input might be in English, Arabic, or a garbled version from speech-to-text.
+Your task is to interpret this first message to identify the most likely English grammar concept or question they are asking about. Then, explain that concept or answer the question clearly in Arabic. If the input is too unclear, politely ask for clarification in Arabic.
+{{/if}}`,
 });
 
 const ahmedVoiceCallFlow = ai.defineFlow(

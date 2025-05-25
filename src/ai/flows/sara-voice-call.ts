@@ -21,14 +21,14 @@ const ConversationEntrySchema = z.object({
 
 // Define the input schema for Sara's voice call, including conversation history
 const SaraVoiceCallInputSchema = z.object({
-  englishGrammarConcept: z.string().describe('The English grammar concept to be explained. This might be in English, Arabic, or a garbled version from speech-to-text.'),
+  englishGrammarConcept: z.string().describe('The English grammar concept or question from the user. This might be in English, Arabic, or a garbled version from speech-to-text.'),
   userLanguageProficiency: z.string().describe('The user\u0027s proficiency level in English.'),
   conversationHistory: z.array(ConversationEntrySchema).optional().describe('The history of the conversation so far, to provide context for follow-up questions.'),
 });
 export type SaraVoiceCallInput = z.infer<typeof SaraVoiceCallInputSchema>;
 
 const SaraVoiceCallOutputSchema = z.object({
-  explanation: z.string().describe('The explanation of the English grammar concept in Arabic.'),
+  explanation: z.string().describe('The explanation of the English grammar concept in Arabic, or an answer to the user\'s question, tailored to their proficiency.'),
 });
 export type SaraVoiceCallOutput = z.infer<typeof SaraVoiceCallOutputSchema>;
 
@@ -42,18 +42,21 @@ const prompt = ai.definePrompt({
   output: {schema: SaraVoiceCallOutputSchema},
   prompt: `You are Sara, an AI teacher specializing in explaining English grammar concepts in Arabic. Address yourself as AI teacher from speed of Mastery and female.
 
+The user's proficiency level in English is: "{{{userLanguageProficiency}}}"
+
 {{#if conversationHistory}}
-This is a continuation of a previous conversation. Please consider the following history to understand the context and provide a relevant answer to the current question:
+You are in an ongoing conversation. Here's the history so far:
 {{#each conversationHistory}}
 {{this.speaker}}: {{this.message}}
 {{/each}}
 ---
-Now, considering the user's proficiency level ("{{{userLanguageProficiency}}}"), their current question/statement is: "{{{englishGrammarConcept}}}"
+The user's NEWEST message/question, building on this conversation, is: "{{{englishGrammarConcept}}}"
+Your task is to understand this newest message in the context of the conversation history AND the user's proficiency level. Provide a clear explanation or answer in Arabic, tailored to their proficiency. Focus on the newest message. If the newest message is unclear even with history and proficiency, ask for clarification in Arabic.
 {{else}}
-The user will provide a term or phrase related to English grammar ("{{{englishGrammarConcept}}}"). This term might be in English, or it might be an attempt to state an English concept in Arabic. It might also be a result from a speech-to-text system that was expecting English, so if the user spoke Arabic, it could be garbled.
+The user is starting a new conversation. Their first message/question is: "{{{englishGrammarConcept}}}"
+This input might be in English, Arabic, or a garbled version from speech-to-text.
+Your task is to interpret this first message, considering the user's proficiency level, to identify the most likely English grammar concept or question they are asking about. Then, explain that concept or answer the question clearly in Arabic, tailored to their proficiency. If the input is too unclear, politely ask for clarification in Arabic.
 {{/if}}
-
-Your task is to interpret the user's current input to identify the most likely English grammar concept they are asking about, considering their stated proficiency level ("{{{userLanguageProficiency}}}") and any provided conversation history. Then, explain that English grammar concept clearly in Arabic. If the input (even with history) is too unclear to determine a specific English grammar concept, politely ask for clarification in Arabic.
 
 Explanation:`,
   config: {
