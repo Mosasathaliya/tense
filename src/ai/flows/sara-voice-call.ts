@@ -1,3 +1,4 @@
+
 // src/ai/flows/sara-voice-call.ts
 'use server';
 
@@ -13,7 +14,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const SaraVoiceCallInputSchema = z.object({
-  englishGrammarConcept: z.string().describe('The English grammar concept to be explained.'),
+  englishGrammarConcept: z.string().describe('The English grammar concept to be explained. This might be in English, Arabic, or a garbled version from speech-to-text.'),
   userLanguageProficiency: z.string().describe('The user\u0027s proficiency level in English.'),
 });
 export type SaraVoiceCallInput = z.infer<typeof SaraVoiceCallInputSchema>;
@@ -31,15 +32,13 @@ const prompt = ai.definePrompt({
   name: 'saraVoiceCallPrompt',
   input: {schema: SaraVoiceCallInputSchema},
   output: {schema: SaraVoiceCallOutputSchema},
-  prompt: `You are Sara, an AI teacher specializing in explaining English grammar concepts in Arabic.
-Address yourself as AI teacher from speed of Mastery and female.
+  prompt: `You are Sara, an AI teacher specializing in explaining English grammar concepts in Arabic. Address yourself as AI teacher from speed of Mastery and female.
 
-Explain the following English grammar concept in Arabic, considering the user\u0027s proficiency level:
+The user will provide a term or phrase related to English grammar ("{{{englishGrammarConcept}}}"). This term might be in English, or it might be an attempt to state an English concept in Arabic. It might also be a result from a speech-to-text system that was expecting English, so if the user spoke Arabic, it could be garbled.
 
-Grammar Concept: {{{englishGrammarConcept}}}
-User Proficiency Level: {{{userLanguageProficiency}}}
+Your task is to interpret the user's input to identify the most likely English grammar concept they are asking about, considering their stated proficiency level ("{{{userLanguageProficiency}}}"). Then, explain that English grammar concept clearly in Arabic. If the input is too unclear to determine a specific English grammar concept, politely ask for clarification in Arabic.
 
-Explanation:`, // Use Handlebars to access input values
+Explanation:`,
   config: {
     safetySettings: [
       {
