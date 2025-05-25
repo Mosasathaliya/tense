@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm, type SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, PhoneOff, User, MessageCircle, Mic, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
+import { Loader2, PhoneOff, User, MessageCircle, Mic, AlertTriangle, Volume2, VolumeX, MicOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const ahmedSchema = z.object({
@@ -41,6 +41,11 @@ export function CallInterface() {
   const [isMuted, setIsMuted] = useState(false);
   const { toast } = useToast();
 
+  const [isListening, setIsListening] = useState(false);
+  const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState(true); // Assume supported initially
+  const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+
+
   const ahmedForm = useForm<AhmedFormData>({
     resolver: zodResolver(ahmedSchema),
     defaultValues: { englishGrammarConcept: "" },
@@ -51,10 +56,14 @@ export function CallInterface() {
     defaultValues: { englishGrammarConcept: "", userLanguageProficiency: "" },
   });
 
-  // Effect to reset state and cancel speech when teacher changes
+  // Effect to reset state, cancel speech, and stop recognition when teacher changes
   useEffect(() => {
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
+    }
+    if (speechRecognitionRef.current && isListening) {
+      speechRecognitionRef.current.abort();
+      setIsListening(false);
     }
     setCallState("idle");
     setExplanation(null);
@@ -62,24 +71,20 @@ export function CallInterface() {
     saraForm.reset({ englishGrammarConcept: "", userLanguageProficiency: "" });
     ahmedForm.clearErrors();
     saraForm.clearErrors();
-  }, [selectedTeacher, ahmedForm, saraForm]);
+  }, [selectedTeacher, ahmedForm, saraForm]); // isListening is not a dependency here
 
   // Effect to handle text-to-speech for explanations
   useEffect(() => {
     const synth = window.speechSynthesis;
-    if (!synth) { // Check if SpeechSynthesis API is available
+    if (!synth) {
       return;
     }
 
-    // If conditions to speak are not met, cancel any ongoing speech and exit.
-    if (callState !== 'active' || !explanation || isMuted) {
+    if (callState !== 'active' || !explanation || isMuted || isListening) { // Also don't speak if STT is active
       synth.cancel();
       return;
     }
-
-    // Conditions to speak are met.
-    // It's good practice to cancel any potentially ongoing speech before starting a new one.
-    synth.cancel(); 
+    synth.cancel();
 
     const utterance = new SpeechSynthesisUtterance(explanation);
     utterance.lang = 'ar-SA';
@@ -90,13 +95,8 @@ export function CallInterface() {
       utterance.voice = arabicVoice;
     }
     
-    utterance.onend = () => {
-      // Optional: logic when speech ends naturally
-      // console.info("Speech finished.");
-    };
-
+    utterance.onend = () => {};
     utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
-      // "interrupted" and "canceled" are expected if speech is stopped programmatically
       if (event.error === 'interrupted' || event.error === 'canceled') {
         console.info(`Speech synthesis event: ${event.error}`);
       } else {
@@ -108,19 +108,96 @@ export function CallInterface() {
         });
       }
     };
-
     synth.speak(utterance);
-
-    // Cleanup: cancel speech when component unmounts or dependencies change
     return () => {
       synth.cancel();
     };
-  }, [explanation, callState, isMuted]); // Removed toast from dependencies
+  }, [explanation, callState, isMuted, toast, isListening]);
 
+
+  // Setup Speech Recognition
+  useEffect(() => {
+    const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionAPI) {
+      console.warn("Speech Recognition API not supported in this browser.");
+      setSpeechRecognitionSupported(false);
+      return;
+    }
+    setSpeechRecognitionSupported(true);
+
+    const recognition = new SpeechRecognitionAPI();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      if (window.speechSynthesis && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+    };
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      const currentForm = selectedTeacher === 'Ahmed' ? ahmedForm : saraForm;
+      currentForm.setValue("englishGrammarConcept", transcript, { shouldValidate: true });
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      let errorMessage = "Speech recognition error. Please try again.";
+      if (event.error === 'no-speech') {
+        errorMessage = "No speech detected. Please try again.";
+      } else if (event.error === 'audio-capture') {
+        errorMessage = "Audio capture error. Ensure microphone is working.";
+      } else if (event.error === 'not-allowed') {
+        errorMessage = "Microphone access denied. Please enable permissions.";
+      }
+      toast({ variant: "destructive", title: "Speech Input Error", description: errorMessage });
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    speechRecognitionRef.current = recognition;
+
+    return () => {
+      if (speechRecognitionRef.current) {
+        speechRecognitionRef.current.abort();
+      }
+    };
+  }, [selectedTeacher, ahmedForm, saraForm, toast]);
+
+  const toggleListening = () => {
+    if (!speechRecognitionRef.current || !speechRecognitionSupported) {
+      toast({ variant: "destructive", title: "Feature Not Supported", description: "Speech recognition is not available in your browser." });
+      return;
+    }
+    if (isListening) {
+      speechRecognitionRef.current.stop();
+    } else {
+      try {
+        // Clear the field before starting new recognition
+        // const currentForm = selectedTeacher === 'Ahmed' ? ahmedForm : saraForm;
+        // currentForm.setValue("englishGrammarConcept", "", { shouldValidate: false });
+        speechRecognitionRef.current.start();
+      } catch (e) {
+        console.error("Error starting speech recognition:", e);
+        toast({ variant: "destructive", title: "Speech Input Error", description: "Could not start recognition. It might be busy or already active."});
+        setIsListening(false);
+      }
+    }
+  };
 
   const commonSubmitLogic = () => {
     if (window.speechSynthesis) {
-      window.speechSynthesis.cancel(); // Stop any ongoing speech
+      window.speechSynthesis.cancel();
+    }
+    if (speechRecognitionRef.current && isListening) {
+      speechRecognitionRef.current.abort();
+      setIsListening(false);
     }
     setCallState("calling");
     setExplanation(null);
@@ -172,6 +249,10 @@ export function CallInterface() {
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
     }
+    if (speechRecognitionRef.current && isListening) {
+      speechRecognitionRef.current.abort();
+      setIsListening(false);
+    }
     setCallState("idle");
     setExplanation(null);
     if (selectedTeacher === "Ahmed") ahmedForm.reset();
@@ -181,10 +262,9 @@ export function CallInterface() {
   const toggleMute = () => {
     setIsMuted(prevMuted => {
       const newMutedState = !prevMuted;
-      if (newMutedState && window.speechSynthesis) { // If going to be muted (was unmuted)
-        window.speechSynthesis.cancel(); // Proactively stop speech
+      if (newMutedState && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
       }
-      // If unmuting, the useEffect for speech will handle re-starting speech if applicable.
       return newMutedState;
     });
   };
@@ -252,16 +332,34 @@ export function CallInterface() {
         <CardContent className="p-6 space-y-6">
           <form onSubmit={handleSubmit(currentTeacherInfo.onSubmit as SubmitHandler<any>)} className="space-y-6">
             <div>
-              <Label htmlFor="englishGrammarConcept" className="text-md font-medium">English Grammar Concept</Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label htmlFor="englishGrammarConcept" className="text-md font-medium">English Grammar Concept</Label>
+                {speechRecognitionSupported && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={toggleListening}
+                    className={`p-2 h-8 w-8 ${isListening ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}
+                    disabled={callState === "calling" || isSubmitting || !speechRecognitionSupported}
+                    aria-label={isListening ? "Stop listening" : "Start listening"}
+                  >
+                    {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                  </Button>
+                )}
+              </div>
               <Textarea
                 id="englishGrammarConcept"
-                placeholder="e.g., Present Perfect Tense, Conditional Sentences"
+                placeholder={isListening ? "Listening..." : "e.g., Present Perfect Tense, Conditional Sentences"}
                 {...register("englishGrammarConcept")}
-                className={`mt-2 text-base bg-background focus:ring-2 focus:ring-primary ${errors.englishGrammarConcept ? 'border-destructive focus:ring-destructive' : 'border-border'}`}
+                className={`mt-1 text-base bg-background focus:ring-2 focus:ring-primary ${errors.englishGrammarConcept ? 'border-destructive focus:ring-destructive' : 'border-border'}`}
                 rows={3}
-                disabled={callState === "calling" || isSubmitting}
+                disabled={callState === "calling" || isSubmitting || isListening}
               />
               {errors.englishGrammarConcept && <p className="text-sm text-destructive mt-1">{errors.englishGrammarConcept.message}</p>}
+              {!speechRecognitionSupported && (
+                 <p className="text-xs text-muted-foreground mt-1">Speech input not supported by your browser.</p>
+              )}
             </div>
 
             {selectedTeacher === "Sara" && (
@@ -280,7 +378,7 @@ export function CallInterface() {
             
             <div className="pt-2">
             {callState === "idle" || callState === "error" ? (
-              <Button type="submit" className="w-full py-3 text-lg bg-accent hover:bg-accent/90 text-accent-foreground rounded-md shadow-md transition-transform hover:scale-105" disabled={isSubmitting}>
+              <Button type="submit" className="w-full py-3 text-lg bg-accent hover:bg-accent/90 text-accent-foreground rounded-md shadow-md transition-transform hover:scale-105" disabled={isSubmitting || isListening}>
                 <Mic className="mr-2 h-5 w-5" /> Start Call
               </Button>
             ) : callState === "calling" ? (
@@ -317,4 +415,3 @@ export function CallInterface() {
     </Card>
   );
 }
-
