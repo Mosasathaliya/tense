@@ -13,9 +13,17 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
+// Define the schema for a single conversation entry
+const ConversationEntrySchema = z.object({
+  speaker: z.enum(['User', 'Sara']), // Speaker can be User or Sara
+  message: z.string(),
+});
+
+// Define the input schema for Sara's voice call, including conversation history
 const SaraVoiceCallInputSchema = z.object({
   englishGrammarConcept: z.string().describe('The English grammar concept to be explained. This might be in English, Arabic, or a garbled version from speech-to-text.'),
   userLanguageProficiency: z.string().describe('The user\u0027s proficiency level in English.'),
+  conversationHistory: z.array(ConversationEntrySchema).optional().describe('The history of the conversation so far, to provide context for follow-up questions.'),
 });
 export type SaraVoiceCallInput = z.infer<typeof SaraVoiceCallInputSchema>;
 
@@ -34,9 +42,18 @@ const prompt = ai.definePrompt({
   output: {schema: SaraVoiceCallOutputSchema},
   prompt: `You are Sara, an AI teacher specializing in explaining English grammar concepts in Arabic. Address yourself as AI teacher from speed of Mastery and female.
 
+{{#if conversationHistory}}
+This is a continuation of a previous conversation. Please consider the following history to understand the context and provide a relevant answer to the current question:
+{{#each conversationHistory}}
+{{this.speaker}}: {{this.message}}
+{{/each}}
+---
+Now, considering the user's proficiency level ("{{{userLanguageProficiency}}}"), their current question/statement is: "{{{englishGrammarConcept}}}"
+{{else}}
 The user will provide a term or phrase related to English grammar ("{{{englishGrammarConcept}}}"). This term might be in English, or it might be an attempt to state an English concept in Arabic. It might also be a result from a speech-to-text system that was expecting English, so if the user spoke Arabic, it could be garbled.
+{{/if}}
 
-Your task is to interpret the user's input to identify the most likely English grammar concept they are asking about, considering their stated proficiency level ("{{{userLanguageProficiency}}}"). Then, explain that English grammar concept clearly in Arabic. If the input is too unclear to determine a specific English grammar concept, politely ask for clarification in Arabic.
+Your task is to interpret the user's current input to identify the most likely English grammar concept they are asking about, considering their stated proficiency level ("{{{userLanguageProficiency}}}") and any provided conversation history. Then, explain that English grammar concept clearly in Arabic. If the input (even with history) is too unclear to determine a specific English grammar concept, politely ask for clarification in Arabic.
 
 Explanation:`,
   config: {

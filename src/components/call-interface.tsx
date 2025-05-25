@@ -7,8 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Image from 'next/image';
 
-import { ahmedVoiceCall } from '@/ai/flows/ahmed-voice-call';
-import { saraVoiceCall } from '@/ai/flows/sara-voice-call';
+import { ahmedVoiceCall, type AhmedVoiceCallInput } from '@/ai/flows/ahmed-voice-call';
+import { saraVoiceCall, type SaraVoiceCallInput } from '@/ai/flows/sara-voice-call';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,6 +35,13 @@ type Teacher = "Ahmed" | "Sara";
 type CallState = "idle" | "calling" | "active" | "error";
 type SpeechLanguage = 'en-US' | 'ar-SA';
 
+export interface ConversationEntry {
+  speaker: 'User' | 'Ahmed' | 'Sara';
+  message: string;
+}
+
+const MAX_HISTORY_PAIRS = 10; // 10 pairs = 20 entries (user + AI)
+
 export function CallInterface() {
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher>("Ahmed");
   const [callState, setCallState] = useState<CallState>("idle");
@@ -46,6 +53,7 @@ export function CallInterface() {
   const [listeningLanguage, setListeningLanguage] = useState<SpeechLanguage | null>(null);
   const [speechRecognitionSupported, setSpeechRecognitionSupported] = useState(true);
   const speechRecognitionRef = useRef<SpeechRecognition | null>(null);
+  const [conversationHistory, setConversationHistory] = useState<ConversationEntry[]>([]);
 
 
   const ahmedForm = useForm<AhmedFormData>({
@@ -58,6 +66,7 @@ export function CallInterface() {
     defaultValues: { englishGrammarConcept: "", userLanguageProficiency: "" },
   });
 
+  // Effect to reset state when teacher changes
   useEffect(() => {
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
@@ -69,6 +78,7 @@ export function CallInterface() {
     }
     setCallState("idle");
     setExplanation(null);
+    setConversationHistory([]); // Reset history when teacher changes
     ahmedForm.reset({ englishGrammarConcept: "" });
     saraForm.reset({ englishGrammarConcept: "", userLanguageProficiency: "" });
     ahmedForm.clearErrors();
@@ -76,6 +86,7 @@ export function CallInterface() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTeacher]);
 
+  // Effect for text-to-speech
   useEffect(() => {
     const synth = window.speechSynthesis;
     if (!synth) {
@@ -86,32 +97,38 @@ export function CallInterface() {
       synth.cancel();
       return;
     }
-    synth.cancel(); // Cancel any previous speech
+    synth.cancel(); 
 
     const utterance = new SpeechSynthesisUtterance(explanation);
-    utterance.lang = 'ar-SA'; // Set desired language for the utterance
+    utterance.lang = 'ar-SA'; 
 
     const allVoices = synth.getVoices();
-    const arabicVoices = allVoices.filter(voice => voice.lang.startsWith('ar-'));
-    let chosenVoice = null;
+    // Ensure voices are loaded (can be async)
+    const loadVoices = () => {
+      const arabicVoices = synth.getVoices().filter(voice => voice.lang.startsWith('ar-'));
+      let chosenVoice = null;
 
-    if (arabicVoices.length > 0) {
-      if (selectedTeacher === 'Ahmed') {
-        // Try to find a male Arabic voice
-        chosenVoice = arabicVoices.find(voice => /male|رجل/i.test(voice.name)) || arabicVoices[0];
-      } else if (selectedTeacher === 'Sara') {
-        // Try to find a female Arabic voice
-        chosenVoice = arabicVoices.find(voice => /female|امرأة/i.test(voice.name)) || arabicVoices[0];
+      if (arabicVoices.length > 0) {
+        if (selectedTeacher === 'Ahmed') {
+          chosenVoice = arabicVoices.find(voice => /male|رجل/i.test(voice.name)) || arabicVoices[0];
+        } else if (selectedTeacher === 'Sara') {
+          chosenVoice = arabicVoices.find(voice => /female|امرأة/i.test(voice.name)) || arabicVoices[0];
+        }
+        
+        if (chosenVoice) {
+          utterance.voice = chosenVoice;
+        } else {
+          utterance.voice = arabicVoices[0];
+        }
       }
-      
-      if (chosenVoice) {
-        utterance.voice = chosenVoice;
-      } else {
-        // Fallback to the first available Arabic voice if no gender-specific or general match found
-        utterance.voice = arabicVoices[0];
-      }
+      synth.speak(utterance);
+    };
+
+    if (synth.getVoices().length === 0) {
+        synth.onvoiceschanged = loadVoices;
+    } else {
+        loadVoices();
     }
-    // If no Arabic voices are found at all, the browser will use its default voice for 'ar-SA' if available, or another default.
     
     utterance.onend = () => {};
     utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
@@ -126,7 +143,7 @@ export function CallInterface() {
         });
       }
     };
-    synth.speak(utterance);
+    
     return () => {
       synth.cancel();
     };
@@ -134,6 +151,7 @@ export function CallInterface() {
   }, [explanation, callState, isMuted, isListening, selectedTeacher]);
 
 
+  // Effect for speech recognition setup
   useEffect(() => {
     const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionAPI) {
@@ -146,7 +164,6 @@ export function CallInterface() {
     const recognition = new SpeechRecognitionAPI();
     recognition.continuous = false;
     recognition.interimResults = false;
-    // recognition.lang will be set dynamically
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -230,9 +247,18 @@ export function CallInterface() {
   const handleAhmedSubmit: SubmitHandler<AhmedFormData> = async (data) => {
     commonSubmitLogic();
     try {
-      const result = await ahmedVoiceCall(data);
+      const input: AhmedVoiceCallInput = { 
+        ...data, 
+        conversationHistory: conversationHistory 
+      };
+      const result = await ahmedVoiceCall(input);
       setExplanation(result.explanation);
       setCallState("active");
+      
+      const userEntry: ConversationEntry = { speaker: 'User', message: data.englishGrammarConcept };
+      const aiEntry: ConversationEntry = { speaker: 'Ahmed', message: result.explanation };
+      setConversationHistory(prev => [...prev, userEntry, aiEntry].slice(- (MAX_HISTORY_PAIRS * 2)));
+
       toast({
         title: "تم استلام الشرح",
         description: "أحمد قدم شرحًا.",
@@ -251,9 +277,18 @@ export function CallInterface() {
   const handleSaraSubmit: SubmitHandler<SaraFormData> = async (data) => {
     commonSubmitLogic();
     try {
-      const result = await saraVoiceCall(data);
+      const input: SaraVoiceCallInput = { 
+        ...data, 
+        conversationHistory: conversationHistory 
+      };
+      const result = await saraVoiceCall(input);
       setExplanation(result.explanation);
       setCallState("active");
+
+      const userEntry: ConversationEntry = { speaker: 'User', message: data.englishGrammarConcept };
+      const aiEntry: ConversationEntry = { speaker: 'Sara', message: result.explanation };
+      setConversationHistory(prev => [...prev, userEntry, aiEntry].slice(- (MAX_HISTORY_PAIRS * 2)));
+
        toast({
         title: "تم استلام الشرح",
         description: "سارة قدمت شرحًا.",
@@ -280,6 +315,7 @@ export function CallInterface() {
     }
     setCallState("idle");
     setExplanation(null);
+    setConversationHistory([]); // Reset history on call end
     if (selectedTeacher === "Ahmed") ahmedForm.reset();
     if (selectedTeacher === "Sara") saraForm.reset();
   };
@@ -461,4 +497,3 @@ export function CallInterface() {
     </Card>
   );
 }
-
