@@ -66,41 +66,56 @@ export function CallInterface() {
 
   // Effect to handle text-to-speech for explanations
   useEffect(() => {
-    if (callState === 'active' && explanation && !isMuted && window.speechSynthesis) {
-      // Cancel any previous speech
-      window.speechSynthesis.cancel();
+    const synth = window.speechSynthesis;
+    if (!synth) { // Check if SpeechSynthesis API is available
+      return;
+    }
 
-      const utterance = new SpeechSynthesisUtterance(explanation);
-      utterance.lang = 'ar-SA'; // Set language to Arabic for proper pronunciation
+    // If conditions to speak are not met, cancel any ongoing speech and exit.
+    if (callState !== 'active' || !explanation || isMuted) {
+      synth.cancel();
+      return;
+    }
 
-      // Attempt to find an Arabic voice if available, otherwise use default
-      const voices = window.speechSynthesis.getVoices();
-      const arabicVoice = voices.find(voice => voice.lang.startsWith('ar-'));
-      if (arabicVoice) {
-        utterance.voice = arabicVoice;
-      }
-      
-      utterance.onend = () => {
-        // Can add logic here if needed when speech ends
-      };
-      utterance.onerror = (event) => {
-        console.error("Speech synthesis error:", event.error);
+    // Conditions to speak are met.
+    // It's good practice to cancel any potentially ongoing speech before starting a new one.
+    synth.cancel(); 
+
+    const utterance = new SpeechSynthesisUtterance(explanation);
+    utterance.lang = 'ar-SA';
+
+    const voices = synth.getVoices();
+    const arabicVoice = voices.find(voice => voice.lang.startsWith('ar-'));
+    if (arabicVoice) {
+      utterance.voice = arabicVoice;
+    }
+    
+    utterance.onend = () => {
+      // Optional: logic when speech ends naturally
+      // console.info("Speech finished.");
+    };
+
+    utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
+      // "interrupted" and "canceled" are expected if speech is stopped programmatically
+      if (event.error === 'interrupted' || event.error === 'canceled') {
+        console.info(`Speech synthesis event: ${event.error}`);
+      } else {
+        console.error("Speech synthesis error:", event.error, event);
         toast({
           variant: "destructive",
           title: "Speech Error",
-          description: "Could not play the explanation.",
+          description: `Could not play the explanation. (Reason: ${event.error})`,
         });
-      };
-      window.speechSynthesis.speak(utterance);
-    }
-
-    // Cleanup function to cancel speech if dependencies change or component unmounts
-    return () => {
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
       }
     };
-  }, [explanation, callState, isMuted, toast]);
+
+    synth.speak(utterance);
+
+    // Cleanup: cancel speech when component unmounts or dependencies change
+    return () => {
+      synth.cancel();
+    };
+  }, [explanation, callState, isMuted]); // Removed toast from dependencies
 
 
   const commonSubmitLogic = () => {
@@ -165,17 +180,12 @@ export function CallInterface() {
 
   const toggleMute = () => {
     setIsMuted(prevMuted => {
-      if (!prevMuted && window.speechSynthesis) {
-        // If unmuting and speech was active, it might have been stopped by isMuted dependency change.
-        // If explanation exists, it will be spoken by the useEffect.
-        // If currently speaking, stop it before changing state.
-         window.speechSynthesis.cancel();
-      } else if (prevMuted && window.speechSynthesis && callState === 'active' && explanation) {
-        // If unmuting, and there's an active explanation, let useEffect handle speaking.
-        // This case might be redundant due to useEffect handling it, but ensures speech is cancelled.
-        window.speechSynthesis.cancel();
+      const newMutedState = !prevMuted;
+      if (newMutedState && window.speechSynthesis) { // If going to be muted (was unmuted)
+        window.speechSynthesis.cancel(); // Proactively stop speech
       }
-      return !prevMuted;
+      // If unmuting, the useEffect for speech will handle re-starting speech if applicable.
+      return newMutedState;
     });
   };
 
@@ -307,3 +317,4 @@ export function CallInterface() {
     </Card>
   );
 }
+
