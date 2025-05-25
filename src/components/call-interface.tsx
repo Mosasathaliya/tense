@@ -89,13 +89,29 @@ export function CallInterface() {
     synth.cancel(); // Cancel any previous speech
 
     const utterance = new SpeechSynthesisUtterance(explanation);
-    utterance.lang = 'ar-SA';
+    utterance.lang = 'ar-SA'; // Set desired language for the utterance
 
-    const voices = synth.getVoices();
-    const arabicVoice = voices.find(voice => voice.lang.startsWith('ar-'));
-    if (arabicVoice) {
-      utterance.voice = arabicVoice;
+    const allVoices = synth.getVoices();
+    const arabicVoices = allVoices.filter(voice => voice.lang.startsWith('ar-'));
+    let chosenVoice = null;
+
+    if (arabicVoices.length > 0) {
+      if (selectedTeacher === 'Ahmed') {
+        // Try to find a male Arabic voice
+        chosenVoice = arabicVoices.find(voice => /male|رجل/i.test(voice.name)) || arabicVoices[0];
+      } else if (selectedTeacher === 'Sara') {
+        // Try to find a female Arabic voice
+        chosenVoice = arabicVoices.find(voice => /female|امرأة/i.test(voice.name)) || arabicVoices[0];
+      }
+      
+      if (chosenVoice) {
+        utterance.voice = chosenVoice;
+      } else {
+        // Fallback to the first available Arabic voice if no gender-specific or general match found
+        utterance.voice = arabicVoices[0];
+      }
     }
+    // If no Arabic voices are found at all, the browser will use its default voice for 'ar-SA' if available, or another default.
     
     utterance.onend = () => {};
     utterance.onerror = (event: SpeechSynthesisErrorEvent) => {
@@ -115,7 +131,7 @@ export function CallInterface() {
       synth.cancel();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [explanation, callState, isMuted, isListening]);
+  }, [explanation, callState, isMuted, isListening, selectedTeacher]);
 
 
   useEffect(() => {
@@ -445,3 +461,4 @@ export function CallInterface() {
     </Card>
   );
 }
+
