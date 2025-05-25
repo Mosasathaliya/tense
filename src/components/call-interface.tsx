@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from 'react';
@@ -16,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Loader2, PhoneOff, User, MessageCircle, Mic, AlertTriangle } from 'lucide-react';
+import { Loader2, PhoneOff, User, MessageCircle, Mic, AlertTriangle, Volume2, VolumeX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const ahmedSchema = z.object({
@@ -37,6 +38,7 @@ export function CallInterface() {
   const [selectedTeacher, setSelectedTeacher] = useState<Teacher>("Ahmed");
   const [callState, setCallState] = useState<CallState>("idle");
   const [explanation, setExplanation] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
   const { toast } = useToast();
 
   const ahmedForm = useForm<AhmedFormData>({
@@ -49,7 +51,11 @@ export function CallInterface() {
     defaultValues: { englishGrammarConcept: "", userLanguageProficiency: "" },
   });
 
+  // Effect to reset state and cancel speech when teacher changes
   useEffect(() => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
     setCallState("idle");
     setExplanation(null);
     ahmedForm.reset({ englishGrammarConcept: "" });
@@ -58,9 +64,55 @@ export function CallInterface() {
     saraForm.clearErrors();
   }, [selectedTeacher, ahmedForm, saraForm]);
 
-  const handleAhmedSubmit: SubmitHandler<AhmedFormData> = async (data) => {
+  // Effect to handle text-to-speech for explanations
+  useEffect(() => {
+    if (callState === 'active' && explanation && !isMuted && window.speechSynthesis) {
+      // Cancel any previous speech
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(explanation);
+      utterance.lang = 'ar-SA'; // Set language to Arabic for proper pronunciation
+
+      // Attempt to find an Arabic voice if available, otherwise use default
+      const voices = window.speechSynthesis.getVoices();
+      const arabicVoice = voices.find(voice => voice.lang.startsWith('ar-'));
+      if (arabicVoice) {
+        utterance.voice = arabicVoice;
+      }
+      
+      utterance.onend = () => {
+        // Can add logic here if needed when speech ends
+      };
+      utterance.onerror = (event) => {
+        console.error("Speech synthesis error:", event.error);
+        toast({
+          variant: "destructive",
+          title: "Speech Error",
+          description: "Could not play the explanation.",
+        });
+      };
+      window.speechSynthesis.speak(utterance);
+    }
+
+    // Cleanup function to cancel speech if dependencies change or component unmounts
+    return () => {
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [explanation, callState, isMuted, toast]);
+
+
+  const commonSubmitLogic = () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel(); // Stop any ongoing speech
+    }
     setCallState("calling");
     setExplanation(null);
+  };
+
+  const handleAhmedSubmit: SubmitHandler<AhmedFormData> = async (data) => {
+    commonSubmitLogic();
     try {
       const result = await ahmedVoiceCall(data);
       setExplanation(result.explanation);
@@ -81,8 +133,7 @@ export function CallInterface() {
   };
 
   const handleSaraSubmit: SubmitHandler<SaraFormData> = async (data) => {
-    setCallState("calling");
-    setExplanation(null);
+    commonSubmitLogic();
     try {
       const result = await saraVoiceCall(data);
       setExplanation(result.explanation);
@@ -103,10 +154,29 @@ export function CallInterface() {
   };
 
   const endCall = () => {
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
     setCallState("idle");
     setExplanation(null);
     if (selectedTeacher === "Ahmed") ahmedForm.reset();
     if (selectedTeacher === "Sara") saraForm.reset();
+  };
+
+  const toggleMute = () => {
+    setIsMuted(prevMuted => {
+      if (!prevMuted && window.speechSynthesis) {
+        // If unmuting and speech was active, it might have been stopped by isMuted dependency change.
+        // If explanation exists, it will be spoken by the useEffect.
+        // If currently speaking, stop it before changing state.
+         window.speechSynthesis.cancel();
+      } else if (prevMuted && window.speechSynthesis && callState === 'active' && explanation) {
+        // If unmuting, and there's an active explanation, let useEffect handle speaking.
+        // This case might be redundant due to useEffect handling it, but ensures speech is cancelled.
+        window.speechSynthesis.cancel();
+      }
+      return !prevMuted;
+    });
   };
 
   const teacherDetails = {
@@ -132,7 +202,7 @@ export function CallInterface() {
 
   return (
     <Card className="w-full max-w-2xl shadow-xl overflow-hidden bg-card">
-      <CardHeader className="text-center p-6 bg-muted/30">
+      <CardHeader className="text-center p-6 bg-muted/30 relative">
         <div className="flex justify-center mb-4">
             <Avatar className="w-28 h-28 border-4 border-primary shadow-lg">
               <Image 
@@ -148,6 +218,15 @@ export function CallInterface() {
         </div>
         <CardTitle className="text-3xl font-semibold text-foreground">{currentTeacherInfo.name}</CardTitle>
         <CardDescription className="text-muted-foreground mt-1">{currentTeacherInfo.description}</CardDescription>
+         <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleMute}
+            className="absolute top-4 right-4 text-muted-foreground hover:text-primary"
+            aria-label={isMuted ? "Unmute" : "Mute"}
+          >
+            {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
+          </Button>
       </CardHeader>
 
       <Tabs value={selectedTeacher} onValueChange={(value) => setSelectedTeacher(value as Teacher)} className="w-full">
