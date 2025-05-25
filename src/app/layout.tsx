@@ -5,8 +5,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'LinguaLearn AI Duo',
-  description: 'AI Teachers for English Grammar in Arabic',
+  title: 'لينجوا ليرن - معلمك الثنائي للغة الإنجليزية',
+  description: 'معلمو الذكاء الاصطناعي لشرح قواعد اللغة الإنجليزية باللغة العربية',
 };
 
 export default function RootLayout({
@@ -15,7 +15,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="ar" dir="rtl">
       <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans antialiased`}>
         {children}
         <Toaster />

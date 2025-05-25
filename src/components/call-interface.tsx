@@ -21,13 +21,13 @@ import { Loader2, PhoneOff, User, MessageCircle, Mic, AlertTriangle, Volume2, Vo
 import { useToast } from '@/hooks/use-toast';
 
 const ahmedSchema = z.object({
-  englishGrammarConcept: z.string().min(3, { message: "Please enter a grammar concept (min. 3 characters)." }),
+  englishGrammarConcept: z.string().min(3, { message: "يرجى إدخال مفهوم قواعدي (3 أحرف على الأقل)." }),
 });
 type AhmedFormData = z.infer<typeof ahmedSchema>;
 
 const saraSchema = z.object({
-  englishGrammarConcept: z.string().min(3, { message: "Please enter a grammar concept (min. 3 characters)." }),
-  userLanguageProficiency: z.string().min(2, { message: "Please describe your proficiency (min. 2 characters)." }),
+  englishGrammarConcept: z.string().min(3, { message: "يرجى إدخال مفهوم قواعدي (3 أحرف على الأقل)." }),
+  userLanguageProficiency: z.string().min(2, { message: "يرجى وصف مستوى إتقانك (حرفان على الأقل)." }),
 });
 type SaraFormData = z.infer<typeof saraSchema>;
 
@@ -87,7 +87,7 @@ export function CallInterface() {
     synth.cancel();
 
     const utterance = new SpeechSynthesisUtterance(explanation);
-    utterance.lang = 'ar-SA';
+    utterance.lang = 'ar-SA'; // Arabic speech
 
     const voices = synth.getVoices();
     const arabicVoice = voices.find(voice => voice.lang.startsWith('ar-'));
@@ -103,8 +103,8 @@ export function CallInterface() {
         console.error("Speech synthesis error:", event.error, event);
         toast({
           variant: "destructive",
-          title: "Speech Error",
-          description: `Could not play the explanation. (Reason: ${event.error})`,
+          title: "خطأ في النطق",
+          description: `تعذر تشغيل الشرح. (السبب: ${event.error})`,
         });
       }
     };
@@ -128,7 +128,7 @@ export function CallInterface() {
     const recognition = new SpeechRecognitionAPI();
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = 'en-US';
+    recognition.lang = 'en-US'; // User speaks English grammar concept
 
     recognition.onstart = () => {
       setIsListening(true);
@@ -145,15 +145,15 @@ export function CallInterface() {
 
     recognition.onerror = (event) => {
       console.error("Speech recognition error:", event.error);
-      let errorMessage = "Speech recognition error. Please try again.";
+      let errorMessage = "خطأ في التعرف على الكلام. يرجى المحاولة مرة أخرى.";
       if (event.error === 'no-speech') {
-        errorMessage = "No speech detected. Please try again.";
+        errorMessage = "لم يتم اكتشاف أي كلام. يرجى المحاولة مرة أخرى.";
       } else if (event.error === 'audio-capture') {
-        errorMessage = "Audio capture error. Ensure microphone is working.";
+        errorMessage = "خطأ في التقاط الصوت. تأكد من أن الميكروفون يعمل.";
       } else if (event.error === 'not-allowed') {
-        errorMessage = "Microphone access denied. Please enable permissions.";
+        errorMessage = "تم رفض الوصول إلى الميكروفون. يرجى تفعيل الأذونات.";
       }
-      toast({ variant: "destructive", title: "Speech Input Error", description: errorMessage });
+      toast({ variant: "destructive", title: "خطأ في الإدخال الصوتي", description: errorMessage });
       setIsListening(false);
     };
 
@@ -172,20 +172,17 @@ export function CallInterface() {
 
   const toggleListening = () => {
     if (!speechRecognitionRef.current || !speechRecognitionSupported) {
-      toast({ variant: "destructive", title: "Feature Not Supported", description: "Speech recognition is not available in your browser." });
+      toast({ variant: "destructive", title: "الميزة غير مدعومة", description: "التعرف على الكلام غير متوفر في متصفحك." });
       return;
     }
     if (isListening) {
       speechRecognitionRef.current.stop();
     } else {
       try {
-        // Clear the field before starting new recognition
-        // const currentForm = selectedTeacher === 'Ahmed' ? ahmedForm : saraForm;
-        // currentForm.setValue("englishGrammarConcept", "", { shouldValidate: false });
         speechRecognitionRef.current.start();
       } catch (e) {
         console.error("Error starting speech recognition:", e);
-        toast({ variant: "destructive", title: "Speech Input Error", description: "Could not start recognition. It might be busy or already active."});
+        toast({ variant: "destructive", title: "خطأ في الإدخال الصوتي", description: "تعذر بدء التعرف. قد يكون مشغولاً أو نشطًا بالفعل."});
         setIsListening(false);
       }
     }
@@ -210,15 +207,15 @@ export function CallInterface() {
       setExplanation(result.explanation);
       setCallState("active");
       toast({
-        title: "Explanation Received",
-        description: "Ahmed has provided an explanation.",
+        title: "تم استلام الشرح",
+        description: "أحمد قدم شرحًا.",
       });
     } catch (error) {
       console.error("Error calling Ahmed:", error);
       toast({
         variant: "destructive",
-        title: "Error Calling Ahmed",
-        description: "Failed to get explanation from Ahmed. Please try again.",
+        title: "خطأ في الاتصال بأحمد",
+        description: "فشل الحصول على شرح من أحمد. يرجى المحاولة مرة أخرى.",
       });
       setCallState("error");
     }
@@ -231,15 +228,15 @@ export function CallInterface() {
       setExplanation(result.explanation);
       setCallState("active");
        toast({
-        title: "Explanation Received",
-        description: "Sara has provided an explanation.",
+        title: "تم استلام الشرح",
+        description: "سارة قدمت شرحًا.",
       });
     } catch (error) {
       console.error("Error calling Sara:", error);
       toast({
         variant: "destructive",
-        title: "Error Calling Sara",
-        description: "Failed to get explanation from Sara. Please try again.",
+        title: "خطأ في الاتصال بسارة",
+        description: "فشل الحصول على شرح من سارة. يرجى المحاولة مرة أخرى.",
       });
       setCallState("error");
     }
@@ -271,17 +268,17 @@ export function CallInterface() {
 
   const teacherDetails = {
     Ahmed: {
-      name: "Ahmed",
+      name: "أحمد",
       avatarSrc: "https://placehold.co/128x128.png",
       avatarHint: "man portrait",
-      description: "AI teacher providing Arabic explanations of English grammar.",
+      description: "معلم ذكاء اصطناعي يقدم شروحات باللغة العربية لقواعد اللغة الإنجليزية.",
       onSubmit: handleAhmedSubmit,
     },
     Sara: {
-      name: "Sara",
+      name: "سارة",
       avatarSrc: "https://placehold.co/128x128.png",
       avatarHint: "woman portrait",
-      description: "AI teacher tailoring Arabic explanations of English grammar to your proficiency.",
+      description: "معلمة ذكاء اصطناعي تصمم شروحات باللغة العربية لقواعد اللغة الإنجليزية لتناسب مستوى إتقانك.",
       onSubmit: handleSaraSubmit,
     },
   };
@@ -312,8 +309,8 @@ export function CallInterface() {
             variant="ghost"
             size="icon"
             onClick={toggleMute}
-            className="absolute top-4 right-4 text-muted-foreground hover:text-primary"
-            aria-label={isMuted ? "Unmute" : "Mute"}
+            className="absolute top-4 rtl:left-4 ltr:right-4 text-muted-foreground hover:text-primary"
+            aria-label={isMuted ? "إلغاء كتم الصوت" : "كتم الصوت"}
           >
             {isMuted ? <VolumeX className="h-6 w-6" /> : <Volume2 className="h-6 w-6" />}
           </Button>
@@ -322,10 +319,10 @@ export function CallInterface() {
       <Tabs value={selectedTeacher} onValueChange={(value) => setSelectedTeacher(value as Teacher)} className="w-full">
         <TabsList className="grid w-full grid-cols-2 rounded-none h-auto">
           <TabsTrigger value="Ahmed" className="py-4 text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-none">
-            <User className="mr-2 h-5 w-5" /> Ahmed
+            <User className="ms-2 h-5 w-5" /> أحمد
           </TabsTrigger>
           <TabsTrigger value="Sara" className="py-4 text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-md rounded-none">
-            <User className="mr-2 h-5 w-5" /> Sara
+            <User className="ms-2 h-5 w-5" /> سارة
           </TabsTrigger>
         </TabsList>
 
@@ -333,7 +330,7 @@ export function CallInterface() {
           <form onSubmit={handleSubmit(currentTeacherInfo.onSubmit as SubmitHandler<any>)} className="space-y-6">
             <div>
               <div className="flex items-center justify-between mb-1">
-                <Label htmlFor="englishGrammarConcept" className="text-md font-medium">English Grammar Concept</Label>
+                <Label htmlFor="englishGrammarConcept" className="text-md font-medium">مفهوم قواعد اللغة الإنجليزية</Label>
                 {speechRecognitionSupported && (
                   <Button
                     type="button"
@@ -342,7 +339,7 @@ export function CallInterface() {
                     onClick={toggleListening}
                     className={`p-2 h-8 w-8 ${isListening ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}
                     disabled={callState === "calling" || isSubmitting || !speechRecognitionSupported}
-                    aria-label={isListening ? "Stop listening" : "Start listening"}
+                    aria-label={isListening ? "أوقف الاستماع" : "ابدأ الاستماع"}
                   >
                     {isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
                   </Button>
@@ -350,7 +347,7 @@ export function CallInterface() {
               </div>
               <Textarea
                 id="englishGrammarConcept"
-                placeholder={isListening ? "Listening..." : "e.g., Present Perfect Tense, Conditional Sentences"}
+                placeholder={isListening ? "جاري الاستماع..." : "مثال: المضارع التام، الجمل الشرطية"}
                 {...register("englishGrammarConcept")}
                 className={`mt-1 text-base bg-background focus:ring-2 focus:ring-primary ${errors.englishGrammarConcept ? 'border-destructive focus:ring-destructive' : 'border-border'}`}
                 rows={3}
@@ -358,16 +355,16 @@ export function CallInterface() {
               />
               {errors.englishGrammarConcept && <p className="text-sm text-destructive mt-1">{errors.englishGrammarConcept.message}</p>}
               {!speechRecognitionSupported && (
-                 <p className="text-xs text-muted-foreground mt-1">Speech input not supported by your browser.</p>
+                 <p className="text-xs text-muted-foreground mt-1">الإدخال الصوتي غير مدعوم في متصفحك.</p>
               )}
             </div>
 
             {selectedTeacher === "Sara" && (
               <div>
-                <Label htmlFor="userLanguageProficiency" className="text-md font-medium">Your Language Proficiency</Label>
+                <Label htmlFor="userLanguageProficiency" className="text-md font-medium">مستوى إتقانك للغة</Label>
                 <Input
                   id="userLanguageProficiency"
-                  placeholder="e.g., Beginner, Intermediate, Advanced in English"
+                  placeholder="مثال: مبتدئ، متوسط، متقدم في اللغة الإنجليزية"
                   {...register("userLanguageProficiency")}
                   className={`mt-2 text-base bg-background focus:ring-2 focus:ring-primary ${errors.userLanguageProficiency ? 'border-destructive focus:ring-destructive' : 'border-border'}`}
                   disabled={callState === "calling" || isSubmitting}
@@ -379,15 +376,15 @@ export function CallInterface() {
             <div className="pt-2">
             {callState === "idle" || callState === "error" ? (
               <Button type="submit" className="w-full py-3 text-lg bg-accent hover:bg-accent/90 text-accent-foreground rounded-md shadow-md transition-transform hover:scale-105" disabled={isSubmitting || isListening}>
-                <Mic className="mr-2 h-5 w-5" /> Start Call
+                <Mic className="ms-2 h-5 w-5" /> ابدأ المكالمة
               </Button>
             ) : callState === "calling" ? (
               <Button className="w-full py-3 text-lg bg-accent/80 rounded-md" disabled>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Calling {currentTeacherInfo.name}...
+                <Loader2 className="ms-2 h-5 w-5 animate-spin" /> جاري الاتصال بـ {currentTeacherInfo.name}...
               </Button>
             ) : ( // callState === "active"
               <Button type="button" onClick={endCall} variant="outline" className="w-full py-3 text-lg border-primary text-primary hover:bg-primary/10 rounded-md shadow-sm transition-transform hover:scale-105">
-                <PhoneOff className="mr-2 h-5 w-5" /> End Call
+                <PhoneOff className="ms-2 h-5 w-5" /> إنهاء المكالمة
               </Button>
             )}
             </div>
@@ -396,17 +393,17 @@ export function CallInterface() {
           {callState === "active" && explanation && (
             <div className="mt-6 p-6 bg-secondary/30 rounded-lg shadow-inner border border-border">
               <h3 className="text-xl font-semibold mb-3 text-primary flex items-center">
-                <MessageCircle className="mr-2 h-6 w-6" /> {currentTeacherInfo.name}'s Explanation:
+                <MessageCircle className="ms-2 h-6 w-6" /> شرح {currentTeacherInfo.name}:
               </h3>
               <div className="text-foreground whitespace-pre-wrap text-base leading-relaxed p-2 bg-background rounded" style={{ textAlign: 'right', direction: 'rtl' }}>{explanation}</div>
             </div>
           )}
           {callState === "error" && (
-             <div className="mt-6 p-4 bg-destructive/10 text-destructive rounded-lg shadow-inner border border-destructive/30 flex items-center space-x-3">
+             <div className="mt-6 p-4 bg-destructive/10 text-destructive rounded-lg shadow-inner border border-destructive/30 flex items-center gap-3">
               <AlertTriangle className="h-8 w-8 flex-shrink-0" />
               <div>
-                <h3 className="text-lg font-semibold">Call Failed</h3>
-                <p className="text-sm">Could not connect with {currentTeacherInfo.name}. Please try again.</p>
+                <h3 className="text-lg font-semibold">فشل الاتصال</h3>
+                <p className="text-sm">تعذر الاتصال بـ {currentTeacherInfo.name}. يرجى المحاولة مرة أخرى.</p>
               </div>
             </div>
           )}

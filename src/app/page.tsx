@@ -6,14 +6,14 @@ export default function HomePage() {
     <div className="flex flex-col items-center justify-start min-h-screen bg-background p-4 sm:p-8 pt-12 sm:pt-16">
       <header className="mb-10 text-center">
         <LinguaLearnLogo className="mx-auto h-20 w-20 text-primary mb-4 animate-pulse" />
-        <h1 className="text-5xl font-bold text-foreground tracking-tight">LinguaLearn AI Duo</h1>
+        <h1 className="text-5xl font-bold text-foreground tracking-tight">لينجوا ليرن الثنائي الذكاء الاصطناعي</h1>
         <p className="text-xl text-muted-foreground mt-2">
-          Your AI teachers for mastering English grammar, explained in Arabic.
+          معلموك الذكاء الاصطناعي لإتقان قواعد اللغة الإنجليزية، مع شرح باللغة العربية.
         </p>
       </header>
       <CallInterface />
        <footer className="mt-12 text-center text-sm text-muted-foreground">
-        <p>&copy; {new Date().getFullYear()} LinguaLearn AI Duo. Powered by Speed of Mastery.</p>
+        <p>&copy; {new Date().getFullYear()} لينجوا ليرن الثنائي الذكاء الاصطناعي. مقدم من سبيد أوف ماستري.</p>
       </footer>
     </div>
   );
