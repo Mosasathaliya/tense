@@ -334,14 +334,14 @@ export function CallInterface() {
     Ahmed: {
       name: "أحمد",
       avatarSrc: "https://placehold.co/128x128.png",
-      avatarHint: "man portrait",
+      avatarHint: "brain logo",
       description: "معلم ذكاء اصطناعي يقدم شروحات باللغة العربية لقواعد اللغة الإنجليزية.",
       onSubmit: handleAhmedSubmit,
     },
     Sara: {
       name: "سارة",
       avatarSrc: "https://placehold.co/128x128.png",
-      avatarHint: "woman portrait",
+      avatarHint: "brain logo",
       description: "معلمة ذكاء اصطناعي تصمم شروحات باللغة العربية لقواعد اللغة الإنجليزية لتناسب مستوى إتقانك.",
       onSubmit: handleSaraSubmit,
     },
